@@ -48,6 +48,7 @@ export function CreateEventModal(props: CreateEventModalProps) {
                                         required={true}
                                         mode="single"
                                         selected={date}
+                                        today={new Date()}
                                         onSelect={(date) => {
                                             setDate(date);
                                             setOpenPopover(false);
