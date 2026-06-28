@@ -1,16 +1,14 @@
-import React from 'react';
+import { createClient } from '@/utils/supabase/server';
+import { cookies } from 'next/headers';
 import Calendar from "@/components/calendar/calendar";
 
-import {getClients} from "@/utils/supabase/getters/client";
-import {getDogs} from "@/utils/supabase/getters/dog";
-import {getAppointments} from "@/utils/supabase/getters/appointment";
-
 export default async function Home() {
-    const clients = await getClients();
-    const dogs = await getDogs();
-    const appointments = await getAppointments();
+    const cookieStore = await cookies()
+    const supabase = createClient(cookieStore)
 
-    console.log(dogs, clients, appointments);
+    const {data} = await supabase.from('dogs').select('*');
+
+    console.log(data);
     return (
         <div>
             <CalendarContainer>
