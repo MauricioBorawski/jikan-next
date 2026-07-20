@@ -1,27 +1,33 @@
-import { createClient } from '@/utils/supabase/server';
-import { cookies } from 'next/headers';
 import Calendar from "@/components/calendar/calendar";
 
-export default async function Home() {
-    const cookieStore = await cookies()
-    const supabase = createClient(cookieStore)
+import { getAppointments } from "@/utils/supabase/getters/appointment";
 
-    const {data} = await supabase.from('dogs').select('*');
+function parseAppointmentsToEvents(
+  appointments: Awaited<ReturnType<typeof getAppointments>>,
+) {
+  if (!appointments) return [];
 
-    console.log(data);
-    return (
-        <div>
-            <CalendarContainer>
-                <Calendar/>
-            </CalendarContainer>
-        </div>
-    );
+  return appointments.map((appointment) => ({
+    id: appointment.id.toString(),
+    title: appointment.service || "Cita",
+    start: new Date(appointment.datetime).getTime(),
+  }));
 }
 
-function CalendarContainer({children}: { children: React.ReactNode }) {
-    return (
-        <div className="p-4 max-h-dvh h-screen">
-            {children}
-        </div>
-    )
+export default async function Home() {
+  const appointments = await getAppointments();
+  const events = parseAppointmentsToEvents(appointments);
+  console.log("events", events);
+
+  return (
+    <div>
+      <CalendarContainer>
+        <Calendar events={events} />
+      </CalendarContainer>
+    </div>
+  );
+}
+
+function CalendarContainer({ children }: { children: React.ReactNode }) {
+  return <div className="p-4 max-h-dvh h-screen">{children}</div>;
 }

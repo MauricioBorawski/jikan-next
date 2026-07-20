@@ -5,4 +5,7 @@ export interface Appointment {
     dog_id: number
     id: number
     service: string | null
+    title: string;
 }
+
+export type AppointmentWithoutId = Omit<Appointment, "id" | "created_at">;

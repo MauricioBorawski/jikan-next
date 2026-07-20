@@ -47,6 +47,7 @@ export type Database = {
           dog_id: number
           id: number
           service: string | null
+          title: string;
         }
         Insert: {
           client_id: number
@@ -55,6 +56,7 @@ export type Database = {
           dog_id: number
           id?: number
           service?: string | null
+          title: string;
         }
         Update: {
           client_id?: number
@@ -63,6 +65,7 @@ export type Database = {
           dog_id?: number
           id?: number
           service?: string | null
+          title?: string;
         }
         Relationships: [
           {
