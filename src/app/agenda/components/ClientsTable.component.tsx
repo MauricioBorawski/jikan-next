@@ -1,5 +1,6 @@
-import { getDogs } from "@/utils/supabase/getters/dog";
-import { getClients } from "@/utils/supabase/getters/client";
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -21,10 +22,64 @@ import { AddClientModalTrigger } from "@/components/modals/AddClientModalTrigger
 
 import type { Dog } from "@/types/Dog/type";
 import type { Client } from "@/types/Client/type";
+import { createClient } from "@/utils/supabase/client";
 
-export async function ClientsTable() {
-  const dogs = (await getDogs()) as Dog[] | null;
-  const owners = (await getClients()) as Client[] | null;
+interface ClientsTableProps {
+  initialDogs: Dog[];
+  initialOwners: Client[];
+}
+
+export function ClientsTable({ initialDogs, initialOwners }: ClientsTableProps) {
+  const [dogs, setDogs] = useState<Dog[]>(initialDogs);
+  const [owners, setOwners] = useState<Client[]>(initialOwners);
+
+  useEffect(() => {
+    const supabase = createClient();
+
+    const fetchData = async () => {
+      const [{ data: dogsData }, { data: ownersData }] = await Promise.all([
+        supabase.from("dogs").select("*").order("created_at", { ascending: false }),
+        supabase.from("clients").select("*").order("created_at", { ascending: false }),
+      ]);
+
+      setDogs((dogsData as Dog[]) ?? []);
+      setOwners((ownersData as Client[]) ?? []);
+    };
+
+    void fetchData();
+
+    const dogsChannel = supabase
+      .channel("dogs_changes")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "dogs" },
+        () => {
+          void fetchData();
+        }
+      )
+      .subscribe();
+
+    const clientsChannel = supabase
+      .channel("clients_changes")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "clients" },
+        () => {
+          void fetchData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(dogsChannel);
+      void supabase.removeChannel(clientsChannel);
+    };
+  }, []);
+
+  const ownersById = useMemo(
+    () => new Map(owners.map((owner) => [owner.id, owner])),
+    [owners]
+  );
 
   return (
     <div>
@@ -32,7 +87,18 @@ export async function ClientsTable() {
         <form>
           <Input placeholder="Buscar" />
         </form>
-        <AddClientModalTrigger />
+        <AddClientModalTrigger
+          onCreate={(newDog, newOwner) => {
+            setDogs((currentDogs) => [newDog, ...currentDogs]);
+            setOwners((currentOwners) => {
+              if (currentOwners.some((owner) => owner.id === newOwner.id)) {
+                return currentOwners;
+              }
+
+              return [newOwner, ...currentOwners];
+            });
+          }}
+        />
       </div>
 
       <Table>
@@ -49,12 +115,10 @@ export async function ClientsTable() {
             <TableRow key={dog.id}>
               <TableCell>{dog.name}</TableCell>
               <TableCell>
-                {owners?.find((owner) => owner.id === dog.owner_id)?.name ??
-                  "—"}
+                {ownersById.get(dog.owner_id)?.name ?? "—"}
               </TableCell>
               <TableCell>
-                {owners?.find((owner) => owner.id === dog.owner_id)?.contact ??
-                  "—"}
+                {ownersById.get(dog.owner_id)?.contact ?? "—"}
               </TableCell>
               <TableCell>
                 <DropdownMenu>

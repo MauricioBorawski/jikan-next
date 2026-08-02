@@ -1,9 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useForm } from "@tanstack/react-form";
 
 import { createClient } from "@/utils/supabase/client";
+import type { Dog } from "@/types/Dog/type";
+import type { Client } from "@/types/Client/type";
 import { Button } from "../ui/button";
 import {
   Dialog,
@@ -18,9 +21,11 @@ import { Label } from "../ui/label";
 interface AddClientModalProps {
   open: boolean;
   handleOpenChange: (value: boolean) => void;
+  onCreate: (dog: Dog, owner: Client) => void;
 }
 
 export function AddClientModal(props: AddClientModalProps) {
+  const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -55,6 +60,25 @@ export function AddClientModal(props: AddClientModalProps) {
           throw new Error("No se pudo crear el contacto");
         }
 
+        const optimisticOwner: Client = {
+          id: clientData.id,
+          name: value.ownerName.trim(),
+          contact: value.contact.trim() || null,
+          created_at: new Date().toISOString(),
+          email: null,
+        };
+
+        const optimisticDog: Dog = {
+          id: Date.now(),
+          name: value.dogName.trim(),
+          owner_id: clientData.id,
+          created_at: new Date().toISOString(),
+          age: null,
+          breed: null,
+        };
+
+        props.onCreate(optimisticDog, optimisticOwner);
+
         const { error: dogError } = await supabase.from("dogs").insert({
           name: value.dogName.trim(),
           owner_id: clientData.id,
@@ -67,6 +91,7 @@ export function AddClientModal(props: AddClientModalProps) {
 
         form.reset();
         props.handleOpenChange(false);
+        router.refresh();
       } catch (error) {
         setSubmitError(
           error instanceof Error ? error.message : "No se pudo guardar el contacto"
